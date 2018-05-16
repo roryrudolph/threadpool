@@ -10,15 +10,13 @@
  */
 typedef struct
 {
-	/** Function pointer */
-	void (*func)(void *arg);
-	/** Argument passed to the @c func function pointer */
-	void *arg;
+	void (*func)(void *arg); /** Function pointer */
+	void *arg; /** Argument passed to the @c func function pointer */
 } pool_queue_t;
 
 /**
- * The status of the pool, in general. Typically, the state should always be
- * @c POOL_STATUS_NORMAL normal until @c pool_free() is called.
+ * The status of the pool, in general. Typically, the state should always
+ * be @c POOL_STATUS_NORMAL normal until @c pool_free() is called.
  */
 typedef enum
 {
@@ -27,38 +25,30 @@ typedef enum
 } pool_status_t;
 
 /**
- * TODO Document
+ * The thread pool struct
  */
 struct pool
 {
-	/** Pointer to the beginning of the queue space */
-	pool_queue_t *queue;
-	/** Points to the queue 'push' point */
-	pool_queue_t *head;
-	/** Points to the queue 'pop' point */
-	pool_queue_t *tail;
-	/** Pointer to the beginning of the threads space */
-	pthread_t *threads;
-	/** The mutex is used to lock critical thread sections */
-	pthread_mutex_t mtx;
-	/** The cond is used for thread synchronization */
-	pthread_cond_t cnd;
-	/** The runtime status of the pool */
-	pool_status_t status;
-	/** Maximum threads allocated */
-	size_t nthreads;
-	/** Number of threads alive */
-	size_t nalive;
-	/** Maximum queue depth */
-	size_t capacity;
-	/** Current queue depth */
-	size_t count;
+	pool_queue_t *queue; /** Pointer to the beginning of the queue space */
+	pool_queue_t *head; /** Points to the queue 'push' point */
+	pool_queue_t *tail; /** Points to the queue 'pop' point */
+	pthread_t *threads; /** Pointer to the beginning of the threads space */
+	pthread_mutex_t mtx; /** The mutex used to lock critical sections */
+	pthread_cond_t cnd; /** The cond is used for thread synchronization */
+	pool_status_t status; /** The runtime status of the pool */
+	size_t nthreads; /** Maximum threads allocated */
+	size_t nalive; /** Number of threads alive */
+	size_t capacity; /** Maximum queue depth */
+	size_t count; /** Current queue depth */
 };
 
 static void *worker(void *arg);
 
 /**
  * TODO Document
+ * @param nthreads TODO Document
+ * @param capacity TODO Document
+ * @return TODO Document
  */
 pool_t *pool_init(size_t nthreads, size_t capacity)
 {
@@ -68,13 +58,13 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	// Verify function arguments
 	if (nthreads > MAX_WORKER_THREADS)
 	{
-		printf("ERROR: Requested %lu threads, but max is %d",
+		printf("ERROR: Requested %lu threads, but max is %d\n",
 			nthreads, MAX_WORKER_THREADS);
 		return (NULL);
 	}
 	if (capacity > MAX_QUEUE_CAPACITY)
 	{
-		printf("ERROR: Requested %lu capacity, but max is %d",
+		printf("ERROR: Requested %lu capacity, but max is %d\n",
 			capacity, MAX_QUEUE_CAPACITY);
 		return (NULL);
 	}
@@ -82,7 +72,7 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	// Allocate a pool object
 	if ((pool = (pool_t *)calloc(1, sizeof(pool_t))) == NULL)
 	{
-		printf("ERROR: Could not allocate pool memory");
+		printf("ERROR: Could not allocate pool memory\n");
 		return (NULL);
 	}
 
@@ -90,7 +80,7 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	pool->queue = (pool_queue_t *)calloc(capacity, sizeof(*pool->queue));
 	if (pool->queue == NULL)
 	{
-		printf("ERROR: Could not allocate queue memory");
+		printf("ERROR: Could not allocate queue memory\n");
 		return (NULL);
 	}
 	pool->head = pool->queue;
@@ -100,14 +90,14 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	pool->threads = (pthread_t *)calloc(nthreads, sizeof(*pool->threads));
 	if (pool->threads == NULL)
 	{
-		printf("ERROR: Could not allocate thread memory");
+		printf("ERROR: Could not allocate thread memory\n");
 		return (NULL);
 	}
 
 	// Initialize mutex
 	if ((rc = pthread_mutex_init(&pool->mtx, NULL)) != 0)
 	{
-		printf("ERROR: Could not initialize mutex: %s",
+		printf("ERROR: Could not initialize mutex: %s\n",
 			strerror(rc));
 		return (NULL);
 	}
@@ -115,7 +105,7 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	// Initialize condition
 	if ((rc = pthread_cond_init(&pool->cnd, NULL)) != 0)
 	{
-		printf("ERROR: Could not initialize condition: %s",
+		printf("ERROR: Could not initialize condition: %s\n",
 			strerror(rc));
 		return (NULL);
 	}
@@ -132,7 +122,7 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 		rc = pthread_create(&pool->threads[i], NULL, worker, (void *)pool);
 		if (rc != 0)
 		{
-			printf("ERROR: Could not launch thread %lu: %s",
+			printf("ERROR: Could not launch thread %lu: %s\n",
 				i, strerror(rc));
 			return (NULL);
 		}
@@ -140,12 +130,15 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	}
 
 	return (pool);
-} // pool_init()
+}
 
 /**
  * TODO Document
- * @return Returns 0 on success, less than 0 on error. If the queue is full,
- * 0 is still returned, but the element is not added to the queue.
+ * @param pool TODO Document
+ * @param func TODO Document
+ * @param arg TODO Document
+ * @return Returns 0 on success, less than 0 on error. If the queue is
+ * full, 0 is still returned, but the element is not added to the queue.
  */
 int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 {
@@ -157,7 +150,7 @@ int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 
 	if (pool->count == pool->capacity)
 	{
-		printf("ERROR: Queue is full");
+		printf("ERROR: Queue is full\n");
 	}
 	else
 	{
@@ -176,12 +169,14 @@ int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 		return (-1);
 
 	return (0);
-} // pool_enqueue()
+}
 
 /**
  * TODO Document
- * @return Returns 0 on success, less than 0 on error.
- * @c count is set on success and undefined on error.
+ * @param pool TODO Document
+ * @param count TODO Document
+ * @return Returns 0 on success and @c count is set, less than 0 on error
+ * and @c count is undefined
  */
 int pool_get_queue_count(pool_t *pool, size_t *count)
 {
@@ -201,10 +196,12 @@ int pool_get_queue_count(pool_t *pool, size_t *count)
 		return (-1);
 
 	return (0);
-} // pool_get_queue_count()
+}
 
 /**
  * TODO Document
+ * @param pool TODO Document
+ * @param capacity TODO Document
  * @return Returns 0 on success, less than 0 on error.
  */
 int pool_get_queue_capacity(pool_t *pool, size_t *capacity)
@@ -221,6 +218,7 @@ int pool_get_queue_capacity(pool_t *pool, size_t *capacity)
 
 /**
  * TODO Document
+ * @param pool TODO Document
  */
 void pool_free(pool_t *pool)
 {
@@ -230,8 +228,6 @@ void pool_free(pool_t *pool)
 	if (pool == NULL)
 		return;
 
-	printf("DEBUG: Freeing pool resources");
-
 	// First things first... get the mutex
 	pthread_mutex_lock(&pool->mtx);
 
@@ -240,7 +236,6 @@ void pool_free(pool_t *pool)
 
 	// We are protected here, so set the status to SHUTDOWN and
 	// broadcast a signal out to all waiting threads to wake them up
-	printf("DEBUG: Broadcasting thread shutdown");
 	pool->status = POOL_STATUS_SHUTDOWN;
 	pthread_cond_broadcast(&pool->cnd);
 
@@ -251,25 +246,23 @@ void pool_free(pool_t *pool)
 
 	// Wait for threads to shutdown themselves. Waiting on them (joining)
 	// is the only way to be sure they are done
-	printf("DEBUG: Joining %lu worker threads", nalive);
 	for (size_t i = 0; i < nalive; i++)
 	{
 		if ((rc = pthread_join(pool->threads[i], NULL)) != 0)
 		{
-			printf("ERROR: Could not join thread %lu: %s", i, strerror(rc));
+			printf("ERROR: Could not join thread %lu: %s\n", i, strerror(rc));
 		}
 		pool->nalive--;
 	}
-	printf("DEBUG: Joined threads");
 
 	// To make it here, all the threads are done working and exited
 	// Destroy the mutex
 	if ((rc = pthread_mutex_destroy(&pool->mtx)) != 0)
-		printf("ERROR: Could not destroy mutex: %s", strerror(rc));
+		printf("ERROR: Could not destroy mutex: %s\n", strerror(rc));
 
 	// Destroy the signal condition
 	if ((rc = pthread_cond_destroy(&pool->cnd)) != 0)
-		printf("ERROR: Could not destroy condition: %s", strerror(rc));
+		printf("ERROR: Could not destroy condition: %s\n", strerror(rc));
 
 	if (pool->queue)
 		free(pool->queue);
@@ -284,10 +277,12 @@ void pool_free(pool_t *pool)
 	pool = NULL;
 
 	return;
-} // pool_free()
+}
 
 /**
  * TODO Document
+ * @param arg TODO Document
+ * @return TODO Document
  */
 void *worker(void *arg)
 {
@@ -295,11 +290,9 @@ void *worker(void *arg)
 	pool_t *pool;
 	pool_queue_t task;
 
-	printf("DEBUG: Initializing");
-
 	if (arg == NULL)
 	{
-		printf("ERROR: Null argument");
+		printf("ERROR: Null argument\n");
 		pthread_exit(NULL);
 	}
 	pool = (pool_t *)arg;
@@ -308,15 +301,14 @@ void *worker(void *arg)
 	{
 		if ((rc = pthread_mutex_lock(&pool->mtx)) != 0)
 		{
-			printf("ERROR: Could not lock mutex: %s", strerror(rc));
+			printf("ERROR: Could not lock mutex: %s\n", strerror(rc));
 			pthread_exit(NULL);
 		}
 
 		while (pool->count == 0 && pool->status != POOL_STATUS_SHUTDOWN)
 		{
-			printf("DEBUG: Waiting on work");
 			if ((rc = pthread_cond_wait(&pool->cnd, &pool->mtx)) != 0)
-				printf("ERROR: Could not wait on signal: %s", strerror(rc));
+				printf("ERROR: Could not wait on signal: %s\n", strerror(rc));
 		}
 
 		if (pool->status == POOL_STATUS_SHUTDOWN)
@@ -332,19 +324,18 @@ void *worker(void *arg)
 
 		if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0)
 		{
-			printf("ERROR: Could not unlock mutex: %s", strerror(rc));
+			printf("ERROR: Could not unlock mutex: %s\n", strerror(rc));
 			pthread_exit(NULL);
 		}
 
 		(*task.func)(task.arg);
-	} // for (;;)
+	}
 
 	if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0)
 	{
-		printf("ERROR: Could not unlock mutex: %s", strerror(rc));
+		printf("ERROR: Could not unlock mutex: %s\n", strerror(rc));
 		pthread_exit(NULL);
 	}
 
-	printf("DEBUG: Exiting");
 	pthread_exit(NULL);
-} // do_it()
+}

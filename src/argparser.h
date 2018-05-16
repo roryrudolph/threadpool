@@ -2,7 +2,6 @@
 #define ARGPARSER_H_
 
 #include "cfg.h"
-#include "pool.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +70,7 @@ void argparser(int argc, char **argv, cfg_t *cfg)
 			{
 				unsigned long n = strtoul(optarg, NULL, 10);
 				if (n == ULONG_MAX && errno == ERANGE)
-					n = MAX_QUEUE_CAPACITY;
+					break;
 				cfg->queue_capacity = (uint32_t)n;
 				break;
 			}
@@ -79,8 +78,8 @@ void argparser(int argc, char **argv, cfg_t *cfg)
 			{
 				unsigned long n = strtoul(optarg, NULL, 10);
 				if (n == ULONG_MAX && errno == ERANGE)
-					n = MAX_WORKER_THREADS;
-				cfg->num_threads = (uint8_t)n;
+					break;
+				cfg->num_threads = (uint32_t)n;
 				break;
 			}
 			case 'v':

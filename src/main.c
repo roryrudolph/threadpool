@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+/**
+ * Program configuration
+ */
 static cfg_t cfg = 
 {
 	.queue_capacity = MAX_QUEUE_CAPACITY,
@@ -14,9 +17,19 @@ static cfg_t cfg =
 };
 
 /**
+ * @param arg TODO Document
+ */
+void func(void *arg)
+{
+	printf("%s %d\n", __func__, *(int *)arg);
+}
+
+
+/**
  * Main program entry point
  * @param argc Count of command-line arguments
  * @param argv Command-line arguments
+ * @return Returns 0 on success, else error
  */
 int main(int argc, char **argv)
 {
@@ -32,15 +45,15 @@ int main(int argc, char **argv)
 		printf("%*s: %s\n", pad, "Verbose output", cfg.verbose ? "yes" : "no");
 	}
 
-	pool = pool_create(cfg.num_threads, cfg.queue_capacity);
-	pool_destroy(pool);
+	pool = pool_init(cfg.num_threads, cfg.queue_capacity);
 
 	srand(time(NULL));
 
-//	for (i = 0; i < n; i++)
-//	{
-//		printf("%d\n", rand() % 50);
-//	}
+	for (size_t i = 0; i < cfg.queue_capacity; i++)
+		pool_enqueue(pool, func, &i);
+
+	pool_free(pool);
 
 	return (0);
 }
+

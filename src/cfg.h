@@ -11,7 +11,7 @@ extern "C"
 
 typedef struct cfg
 {
-	uint8_t num_threads;
+	uint32_t num_threads;
 	uint32_t queue_capacity;
 	int verbose;
 } cfg_t;
