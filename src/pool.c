@@ -5,6 +5,8 @@
 #include <errno.h> // ESRCH
 #include <signal.h>
 
+int poolerrno = POOL_ERROR_OK;
+
 /**
  * A queue element that will be handled by a worker thread
  */
@@ -12,7 +14,7 @@ typedef struct
 {
 	void (*func)(void *arg); /** Function pointer */
 	void *arg; /** Argument passed to the @c func function pointer */
-} pool_queue_t;
+} queue_element_t;
 
 /**
  * The status of the pool, in general. Typically, the state should always
@@ -29,12 +31,12 @@ typedef enum
  */
 struct pool
 {
-	pool_queue_t *queue; /** Pointer to the beginning of the queue space */
-	pool_queue_t *head; /** Points to the queue 'push' point */
-	pool_queue_t *tail; /** Points to the queue 'pop' point */
+	queue_element_t *queue; /** Pointer to the beginning of the queue space */
+	queue_element_t *head; /** Points to the queue 'push' point */
+	queue_element_t *tail; /** Points to the queue 'pop' point */
 	pthread_t *threads; /** Pointer to the beginning of the threads space */
 	pthread_mutex_t mtx; /** The mutex used to lock critical sections */
-	pthread_cond_t cnd; /** The cond is used for thread synchronization */
+	pthread_cond_t cnd; /** The condtion is used for thread synchronization */
 	pool_status_t status; /** The runtime status of the pool */
 	size_t nthreads; /** Maximum threads allocated */
 	size_t nalive; /** Number of threads alive */
@@ -58,26 +60,24 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 	// Verify function arguments
 	if (nthreads > MAX_WORKER_THREADS)
 	{
-		printf("ERROR: Requested %lu threads, but max is %d\n",
-			nthreads, MAX_WORKER_THREADS);
+		poolerrno = POOL_ERROR_PARAM_RANGE;
 		return (NULL);
 	}
 	if (capacity > MAX_QUEUE_CAPACITY)
 	{
-		printf("ERROR: Requested %lu capacity, but max is %d\n",
-			capacity, MAX_QUEUE_CAPACITY);
+		poolerrno = POOL_ERROR_PARAM_RANGE;
 		return (NULL);
 	}
 
 	// Allocate a pool object
 	if ((pool = (pool_t *)calloc(1, sizeof(pool_t))) == NULL)
 	{
-		printf("ERROR: Could not allocate pool memory\n");
+		poolerrno = POOL_ERROR_NOMEM;
 		return (NULL);
 	}
 
 	// Allocate queue
-	pool->queue = (pool_queue_t *)calloc(capacity, sizeof(*pool->queue));
+	pool->queue = (queue_element_t *)calloc(capacity, sizeof(*pool->queue));
 	if (pool->queue == NULL)
 	{
 		printf("ERROR: Could not allocate queue memory\n");
@@ -288,7 +288,7 @@ void *worker(void *arg)
 {
 	int rc;
 	pool_t *pool;
-	pool_queue_t task;
+	queue_element_t task;
 
 	if (arg == NULL)
 	{
