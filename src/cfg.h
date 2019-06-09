@@ -4,18 +4,14 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-
-typedef struct cfg
-{
+struct cfg {
 	uint32_t num_threads;
 	uint32_t queue_capacity;
 	int verbose;
-} cfg_t;
-
+};
 
 #ifdef __cplusplus
 }

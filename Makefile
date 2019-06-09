@@ -1,3 +1,4 @@
+EXENAME := threadpool
 CC := gcc
 
 BIN_DIR := bin
@@ -5,7 +6,7 @@ SRC_DIR := src
 INC_DIR := src
 OBJ_DIR := obj
 
-BINS := $(BIN_DIR)/threadpool
+BINS := $(BIN_DIR)/$(EXENAME)
 SRCS := $(shell find $(SRC_DIR) -type f -iname "*.c")
 INCS := $(shell find $(INC_DIR) -type f -iname "*.h")
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
@@ -13,6 +14,8 @@ OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 CFLAGS := -Wall -Wextra
 LDFLAGS := -lpthread
 
+
+.PHONY: all clean distclean
 
 all: $(BINS)
 
@@ -25,12 +28,15 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INCS) | $(OBJ_DIR)/
 $(BIN_DIR)/ $(OBJ_DIR)/:
 	mkdir -p $@
 
-.PHONY: all clean distclean
-
 clean:
 	rm -f $(BINS)
 	rm -f $(OBJS)
 
 distclean:
+ifneq ("$(BIN_DIR)",".")
 	rm -rf $(BIN_DIR)
+endif
+ifneq ("$(OBJ_DIR)",",")
 	rm -rf $(OBJ_DIR)
+endif
+

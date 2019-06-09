@@ -7,16 +7,6 @@
 #include <time.h>
 
 /**
- * Program configuration
- */
-static cfg_t cfg = 
-{
-	.queue_capacity = MAX_QUEUE_CAPACITY,
-	.num_threads = MAX_WORKER_THREADS,
-	.verbose = 0,
-};
-
-/**
  * @param arg TODO Document
  */
 void func(void *arg)
@@ -35,10 +25,15 @@ int main(int argc, char **argv)
 {
 	pool_t *pool;
 
+	static struct cfg cfg = {
+		.queue_capacity = MAX_QUEUE_CAPACITY,
+		.num_threads = MAX_WORKER_THREADS,
+		.verbose = 0,
+	};
+
 	argparser(argc, argv, &cfg);
 
-	if (cfg.verbose)
-	{
+	if (cfg.verbose) {
 		int pad = -18;
 		printf("%*s: %u\n", pad, "Number of threads", cfg.num_threads);
 		printf("%*s: %u\n", pad, "Queue capacity", cfg.queue_capacity);

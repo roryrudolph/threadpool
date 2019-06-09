@@ -1,7 +1,6 @@
 #ifndef ARGPARSER_H_
 #define ARGPARSER_H_
 
-#include "cfg.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,8 +8,7 @@
 #include <limits.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 
@@ -38,14 +36,13 @@ Report bugs to <rory.rudolph@outlook.com>\n");
 /**
  * Parses the command line arguments and stores results (if any) into the
  * configuration variable
- * @param argc Count of arguments in @c argv
- * @param argv Command-line arguments
- * @param cfg Pointer to program configuration variable
+ * @param argc Number of arguments in @c argv
+ * @param argv The command-line arguments
+ * @param cfg Pointer to program configuration object
  */
 void argparser(int argc, char **argv, cfg_t *cfg)
 {
-	static struct option long_opts[] =
-	{
+	static struct option long_opts[] = {
 		{ "capacity", required_argument, 0, 'c' },
 		{ "help", no_argument, 0, '?' },
 		{ "threads", required_argument, 0, 't' },
@@ -58,48 +55,45 @@ void argparser(int argc, char **argv, cfg_t *cfg)
 	int opt_index;
 	int c;
 
-	while (1)
-	{
+	while (1) {
 		c = getopt_long(argc, argv, short_opts, long_opts, &opt_index);
 		if (c == -1)
 			break;
 
-		switch (c)
-		{
-			case 'c':
-			{
-				unsigned long n = strtoul(optarg, NULL, 10);
-				if (n == ULONG_MAX && errno == ERANGE)
-					break;
+		switch (c) {
+		case 'c': { /* capacity */
+			unsigned long n = strtoul(optarg, NULL, 10);
+			if (n == ULONG_MAX && errno == ERANGE)
+				break;
+			if (cfg)
 				cfg->queue_capacity = (uint32_t)n;
+			break;
+		}
+		case 't': { /* threads */
+			unsigned long n = strtoul(optarg, NULL, 10);
+			if (n == ULONG_MAX && errno == ERANGE)
 				break;
-			}
-			case 't':
-			{
-				unsigned long n = strtoul(optarg, NULL, 10);
-				if (n == ULONG_MAX && errno == ERANGE)
-					break;
+			if (cfg)
 				cfg->num_threads = (uint32_t)n;
-				break;
-			}
-			case 'v':
+			break;
+		}
+		case 'v': /* verbose */
+			if (cfg)
 				cfg->verbose = 1;
-				break;
-			case '?':
-				print_help();
-				exit(0);
-				break;
-			default:
-				//print_help();
-				exit(1);
-				break;
+			break;
+		case '?': /* help */
+			print_help();
+			exit(0);
+			break;
+		default:
+			exit(1);
+			break;
 		}
 	}
 }
-
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // ARGPARSER_H_
+#endif /* ARGPARSER_H_ */
