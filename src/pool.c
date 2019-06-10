@@ -5,21 +5,21 @@
 #include <errno.h> /* ESRCH, EINVAL, etc */
 #include <signal.h>
 
-int poolerrno = POOL_ERRNO_OK;
+int poolerrno = POOLERRNO_OK;
 
 /**
- * A queue element that will be handled by a worker thread. The worker thread
- * will pop one of these elements off the queue, then call the @c func
- * method with the @c arg parameter.
+ * A queue item that will be handled by a worker thread. The worker thread
+ * will pop one of these items off the queue, then call the `func`
+ * method with the `arg` parameter.
  */
 typedef struct {
 	void (*func)(void *arg); /** Function pointer */
-	void *arg; /** Argument passed to the @c func function pointer */
-} queue_element_t;
+	void *arg; /** Argument passed to the `func` function pointer */
+} queue_item_t;
 
 /**
  * The runtime status of the pool. Typically, the state should always
- * be @c POOL_STATUS_NORMAL until @c pool_free() is called.
+ * be `POOL_STATUS_NORMAL` until `pool_free()` is called.
  */
 typedef enum {
 	POOL_STATUS_NORMAL = 0,
@@ -27,12 +27,12 @@ typedef enum {
 } pool_status_t;
 
 /**
- * The thread pool struct
+ * The threadpool struct
  */
 struct pool {
-	queue_element_t *queue; /** Pointer to the beginning of the queue space */
-	queue_element_t *head; /** Points to the queue 'push' point */
-	queue_element_t *tail; /** Points to the queue 'pop' point */
+	queue_item_t *queue; /** Pointer to the beginning of the queue space */
+	queue_item_t *head; /** Points to the queue 'push' point */
+	queue_item_t *tail; /** Points to the queue 'pop' point */
 	pthread_t *threads; /** Pointer to the beginning of the threads space */
 	pthread_mutex_t mtx; /** The mutex used to lock critical sections */
 	pthread_cond_t cnd; /** The condtion used for thread synchronization */
@@ -43,14 +43,15 @@ struct pool {
 	size_t count; /** Current queue depth */
 };
 
+/* Definition here, more details at implementation */
 static void *worker(void *arg);
 
 /**
  * Initializes a thread pool used to perform various asynchronous work
  * @param nthreads The number of worker threads to use
  * @param capacity The depth of the work queue, i.e. how many possible tasks
- * @return Returns a @c pool_t object on success. On error, NULL is returned
- * and poolerrno is set to an error number.
+ * @return Returns a `pool_t` object on success. On error, NULL is returned
+ * and `poolerrno` is set to an error number.
  */
 pool_t *pool_init(size_t nthreads, size_t capacity)
 {
@@ -69,14 +70,14 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 
 	/* Allocate a pool object */
 	pool = (pool_t *) calloc(1, sizeof(pool_t));
-	if (pool = NULL) {
+	if (pool == NULL) {
 		poolerrno = ENOMEM;
 		return NULL;
 	}
 
 	do {
 		/* Allocate the pool's queue */
-		pool->queue = (queue_element_t *) calloc(capacity, sizeof(*pool->queue));
+		pool->queue = (queue_item_t *)calloc(capacity, sizeof(*pool->queue));
 		if (pool->queue == NULL) {
 			poolerrno = ENOMEM;
 			break;
@@ -85,12 +86,12 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 		pool->tail = pool->queue;
 	
 		/* Allocate the pool's worker threads */
-		pool->threads = (pthread_t *) calloc(nthreads, sizeof(*pool->threads));
+		pool->threads = (pthread_t *)calloc(nthreads, sizeof(*pool->threads));
 		if (pool->threads == NULL) {
 			poolerrno = ENOMEM;
 			break;
 		}
-	
+
 		/* Initialize mutex */
 		if ((rc = pthread_mutex_init(&pool->mtx, NULL)) != 0) {
 			poolerrno = rc;
@@ -103,57 +104,50 @@ pool_t *pool_init(size_t nthreads, size_t capacity)
 			break;
 		}
 
-		/* To get here a pool and the mutexes/conds were successfully
-		 * allocated. Now configure the pool and launch the worker threads.
-		 */
-
-		pool->status = POOL_STATUS_NORMAL;
-		pool->nthreads = nthreads;
-		pool->nalive = 0;
-		pool->capacity = capacity;
-		pool->count = 0;
-
-		for (size_t i = 0; i < nthreads; i++) {
-			rc = pthread_create(&pool->threads[i], NULL, worker, (void *)pool);
-			if (rc != 0) {
-				poolerrno = rc;
-				break;
-			}
-			pool->nalive++;
-		}
-
 	} while (0);
 
 	/* If there is an error, back out the memory allocations, then exit */
 	if (poolerrno != POOLERRNO_OK) {
-		if (pool) {
-			if (pool->threads) {
-				for (size_t i = 0; i < pool->nalive; i++) {
-					pthread_cancel(pool->threads[i]);
-					pthread_join(pool->threads[i], NULL);
-					pool->nalive--;
-				}
-				free(pool->threads);
-			}
-			pool->threads = NULL;
-			if (pool->queue)
-				free(pool->queue);
-			pool->queue = NULL;
-			free(pool);
-			pool = NULL;
-		}
+		if (pool->threads)
+			free(pool->threads);
+		pool->threads = NULL;
+		if (pool->queue)
+			free(pool->queue);
+		pool->queue = NULL;
+		free(pool);
+		pool = NULL;
 		return NULL;
+	}
+	
+	/* To get here a pool and the mutexes/conds were successfully
+	 * allocated. Now configure the pool and launch the worker threads.
+	 */
+
+	pool->status = POOL_STATUS_NORMAL;
+	pool->nthreads = nthreads;
+	pool->nalive = 0;
+	pool->capacity = capacity;
+	pool->count = 0;
+
+	for (size_t i = 0; i < nthreads; i++) {
+		rc = pthread_create(&pool->threads[i], NULL, worker, (void *)pool);
+		if (rc != 0) {
+			poolerrno = rc;
+			break;
+		}
+		pool->nalive++;
 	}
 
 	return pool;
 }
 
 /**
- * TODO Document
- * @param pool TODO Document
+ * @todo Document
+ * @param pool @todo Document
  */
 void pool_free(pool_t *pool)
 {
+	int i;
 	int rc;
 	size_t nalive;
 
@@ -181,9 +175,9 @@ void pool_free(pool_t *pool)
 	/* Wait for threads to shutdown themselves. Waiting on them (joining)
 	 * is the only way to be sure they are done
 	 */
-	for (size_t i = 0; i < nalive; i++) {
+	for (i = 0; (size_t)i < nalive; ++i) {
 		if ((rc = pthread_join(pool->threads[i], NULL)) != 0) {
-			printf("ERROR: Could not join thread %lu: %s\n", i, strerror(rc));
+			printf("WARN: Could not join thread %d: %s\n", i, strerror(rc));
 		}
 		pool->nalive--;
 	}
@@ -214,15 +208,17 @@ void pool_free(pool_t *pool)
 }
 
 /**
- * TODO Document
- * @param pool TODO Document
- * @param func TODO Document
- * @param arg TODO Document
- * @return Returns 0 on success. Less than 0 is returned on error and
- * poolerrno is set.
+ * Puts a work item into the tail of the queue if it is not full.
+ * @param pool The pool to use
+ * @param func The function used for the work item
+ * @param arg The argument to the function used for the work item
+ * @return Returns 0 on success. On error, less than 0 is returned and 
+ *   `poolerrno` is set.
  */
 int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 {
+	int rc;
+
 	if (pool == NULL) {
 		poolerrno = EINVAL;
 		return -1;
@@ -238,6 +234,7 @@ int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 		return -1;
 	}
 
+	/* Tail points to new work item */
 	pool->tail->func = func;
 	pool->tail->arg = arg;
 
@@ -246,6 +243,7 @@ int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 
 	pool->count++;
 
+	/* Tell waiting threads there's something to work on */
 	pthread_cond_signal(&pool->cnd);
 
 	if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0) {
@@ -257,84 +255,120 @@ int pool_enqueue(pool_t *pool, void (*func)(void *), void *arg)
 }
 
 /**
- * TODO Document
- * @param pool TODO Document
- * @param count TODO Document
- * @return Returns 0 on success and @c count is set, less than 0 on error
- * and @c count is undefined
+ * Gets the current number of elements in the pool's queue
+ * @param pool The pool to use
+ * @param count This variable is filled with the current queue count
+ * @return Returns 0 on success and `count` is set. On error, less than 0
+ * is returned, `count` is undefined, and `poolerrno` is set.
  */
 int pool_get_queue_count(pool_t *pool, size_t *count)
 {
-	if (pool == NULL || count == NULL)
-		return EINVAL;
+	int rc;
 
-	if (pthread_mutex_lock(&pool->mtx) != 0)
+	if (pool == NULL || count == NULL) {
+		poolerrno = EINVAL;
 		return -1;
+	}
+
+	if ((rc = pthread_mutex_lock(&pool->mtx)) != 0) {
+		poolerrno = rc;
+		return -1;
+	}
 
 	*count = pool->count;
 
-	if (pthread_mutex_unlock(&pool->mtx) != 0)
+	if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0) {
+		poolerrno = rc;
 		return -1;
+	}
 
 	return 0;
 }
 
 /**
- * TODO Document
- * @param pool TODO Document
- * @param capacity TODO Document
- * @return Returns 0 on success, less than 0 on error.
+ * @todo Document
+ * @param pool The pool to use
+ * @param capacity This variable is filled with the queue capacity
+ * @return Returns 0 on success and `capacity` is set. On error, less than 0
+ * is returned, `capacity` is undefined, and `poolerrno` is set.
  */
 int pool_get_queue_capacity(pool_t *pool, size_t *capacity)
 {
-	if (pool == NULL || capacity == NULL)
-		return EINVAL;
+	int rc;
 
-	if (pthread_mutex_lock(&pool->mtx) != 0)
+	if (pool == NULL || capacity == NULL) {
+		poolerrno = EINVAL;
 		return -1;
+	}
+
+	if ((rc = pthread_mutex_lock(&pool->mtx)) != 0) {
+		poolerrno = rc;
+		return -1;
+	}
 
 	*capacity = pool->capacity;
 
-	if (pthread_mutex_unlock(&pool->mtx) != 0)
+	if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0) {
+		poolerrno = rc;
 		return -1;
+	}
 
 	return 0;
+}
+
+/**
+ * Converts a `poolerrno` error number into a human-readable string
+ * @param poolerrno The error number to convert to a string
+ * @return Returns a human-readable string of `poolerrno`
+ */
+const char *poolerrno_str(int poolerrno)
+{
+	switch (poolerrno) {
+	case POOLERRNO_OK:
+		return "ok";
+	case POOLERRNO_QUEUE_FULL:
+		return "queue is full";
+	default:
+		return strerror(poolerrno);
+	}
 }
 
 /**
  * This is a worker thread that acts on the queue. There can be multiple
  * workers, which is the reason for the mutex locks
  * @param arg This must be the pool_t object allocated from 
- * @return TODO Document
+ * @return @todo Document
  */
 void *worker(void *arg)
 {
 	int rc;
 	pool_t *pool;
-	queue_element_t task;
+	queue_item_t item;
 
 	if (arg == NULL) {
 		poolerrno = EINVAL;
-		pthread_exit(NULL);
+		return NULL;
 	}
+
 	pool = (pool_t *)arg;
 
 	for (;;) {
 		if ((rc = pthread_mutex_lock(&pool->mtx)) != 0) {
-			printf("ERROR: Could not lock mutex: %s\n", strerror(rc));
-			pthread_exit(NULL);
+			poolerrno = rc;
+			return NULL;
 		}
 
 		while (pool->count == 0 && pool->status != POOL_STATUS_SHUTDOWN) {
-			if ((rc = pthread_cond_wait(&pool->cnd, &pool->mtx)) != 0)
-				printf("ERROR: Could not wait on signal: %s\n", strerror(rc));
+			if ((rc = pthread_cond_wait(&pool->cnd, &pool->mtx)) != 0) {
+				poolerrno = rc;
+			}
 		}
 
 		if (pool->status == POOL_STATUS_SHUTDOWN)
 			break;
 
-		task.func = pool->head->func;
-		task.arg = pool->head->arg;
+		item.func = pool->head->func;
+		item.arg = pool->head->arg;
 
 		if (++pool->head >= pool->queue + pool->capacity)
 			pool->head = pool->queue;
@@ -342,17 +376,17 @@ void *worker(void *arg)
 		pool->count--;
 
 		if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0) {
-			printf("ERROR: Could not unlock mutex: %s\n", strerror(rc));
-			pthread_exit(NULL);
+			poolerrno = rc;
+			return NULL;
 		}
 
-		(*task.func)(task.arg);
+		(*item.func)(item.arg);
 	}
 
 	if ((rc = pthread_mutex_unlock(&pool->mtx)) != 0) {
-		printf("ERROR: Could not unlock mutex: %s\n", strerror(rc));
-		pthread_exit(NULL);
+		poolerrno = rc;
+		return NULL;
 	}
 
-	pthread_exit(NULL);
+	return NULL;
 }

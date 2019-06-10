@@ -7,14 +7,17 @@
 extern "C" {
 #endif
 
+#define DEFAULT_PORT  42000
+
 struct cfg {
-	uint32_t num_threads;
-	uint32_t queue_capacity;
 	int verbose;
+	uint32_t nthreads;
+	uint32_t queue_capacity;
+	uint16_t port;
 };
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // CFG_H_
+#endif /* CFG_H_ */

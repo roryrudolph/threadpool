@@ -11,7 +11,7 @@ SRCS := $(shell find $(SRC_DIR) -type f -iname "*.c")
 INCS := $(shell find $(INC_DIR) -type f -iname "*.h")
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 
-CFLAGS := -Wall -Wextra
+CFLAGS := -Wall -Wextra -Werror
 LDFLAGS := -lpthread
 
 
