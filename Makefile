@@ -11,13 +11,17 @@ SRCS := $(shell find $(SRC_DIR) -type f -iname "*.c")
 INCS := $(shell find $(INC_DIR) -type f -iname "*.h")
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 
-CFLAGS := -Wall -Wextra -Werror
+CFLAGS := -g -Wall -Wextra -Werror
 LDFLAGS := -lpthread
 
 
 .PHONY: all clean distclean
 
 all: $(BINS)
+
+release: CFLAGS := $(filter-out -g,$(CFLAGS))
+release: CFLAGS := -O3 $(CFLAGS)
+release: all
 
 $(BINS): $(OBJS) | $(BIN_DIR)/
 	$(CC) -o $@ $^ $(LDFLAGS)
